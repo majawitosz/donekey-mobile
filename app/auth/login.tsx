@@ -61,9 +61,10 @@ export default function LoginScreen() {
 				}
 			}
 
-			await response.json();
+			const responseData = await response.json();
+			const userData = responseData.user;
 			setError(null);
-			login(); // This sets isAuthenticated = true
+			login(userData);
 			router.replace('/(tabs)');
 		} catch (err) {
 			setError(
