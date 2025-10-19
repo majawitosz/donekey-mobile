@@ -24,10 +24,13 @@ export default function RegisterCompanyScreen() {
 	const [password, setPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
 	const [error, setError] = useState<string | null>(null);
+	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const loginHref = '/auth/login' as Href;
 	const workerRegisterHref = '/auth/register' as Href;
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
+		setError(null);
+		setFieldErrors({});
 		if (
 			!companyName.trim() ||
 			!nip.trim() ||
@@ -50,9 +53,52 @@ export default function RegisterCompanyScreen() {
 			return;
 		}
 
-		setError(null);
-		login();
-		router.replace('/(tabs)');
+		try {
+			const response = await fetch(
+				`${
+					process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
+				}/register-company`,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						company_name: companyName,
+						nip: sanitizedNip,
+						email,
+						password,
+					}),
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				if (errorData && typeof errorData === 'object') {
+					const newFieldErrors: Record<string, string> = {};
+					Object.entries(errorData).forEach(([field, messages]) => {
+						if (Array.isArray(messages)) {
+							newFieldErrors[field] = messages.join(', ');
+						} else if (typeof messages === 'string') {
+							newFieldErrors[field] = messages;
+						}
+					});
+					setFieldErrors(newFieldErrors);
+					throw new Error('Popraw błędy w formularzu');
+				} else {
+					throw new Error(errorData.detail || 'Coś poszło nie tak');
+				}
+			}
+
+			await response.json();
+			router.push(`/auth/login?email=${encodeURIComponent(email)}`);
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: 'Wystąpił błąd podczas rejestracji'
+			);
+		}
 	};
 
 	return (
@@ -80,8 +126,22 @@ export default function RegisterCompanyScreen() {
 							onChangeText={(value) => {
 								setCompanyName(value);
 								if (error) setError(null);
+								if (fieldErrors.company_name) {
+									setFieldErrors((prev) => ({
+										...prev,
+										company_name: '',
+									}));
+								}
 							}}
 						/>
+						{fieldErrors.company_name ? (
+							<ThemedText
+								lightColor='#ef4444'
+								darkColor='#fca5a5'
+								style={styles.fieldError}>
+								{fieldErrors.company_name}
+							</ThemedText>
+						) : null}
 					</View>
 					<View style={styles.fieldGroup}>
 						<ThemedText type='subtitle' style={styles.label}>
@@ -96,8 +156,22 @@ export default function RegisterCompanyScreen() {
 							onChangeText={(value) => {
 								setNip(value);
 								if (error) setError(null);
+								if (fieldErrors.nip) {
+									setFieldErrors((prev) => ({
+										...prev,
+										nip: '',
+									}));
+								}
 							}}
 						/>
+						{fieldErrors.nip ? (
+							<ThemedText
+								lightColor='#ef4444'
+								darkColor='#fca5a5'
+								style={styles.fieldError}>
+								{fieldErrors.nip}
+							</ThemedText>
+						) : null}
 					</View>
 					<View style={styles.fieldGroup}>
 						<ThemedText type='subtitle' style={styles.label}>
@@ -114,8 +188,22 @@ export default function RegisterCompanyScreen() {
 							onChangeText={(value) => {
 								setEmail(value);
 								if (error) setError(null);
+								if (fieldErrors.email) {
+									setFieldErrors((prev) => ({
+										...prev,
+										email: '',
+									}));
+								}
 							}}
 						/>
+						{fieldErrors.email ? (
+							<ThemedText
+								lightColor='#ef4444'
+								darkColor='#fca5a5'
+								style={styles.fieldError}>
+								{fieldErrors.email}
+							</ThemedText>
+						) : null}
 					</View>
 					<View style={styles.fieldGroup}>
 						<ThemedText type='subtitle' style={styles.label}>
@@ -130,8 +218,22 @@ export default function RegisterCompanyScreen() {
 							onChangeText={(value) => {
 								setPassword(value);
 								if (error) setError(null);
+								if (fieldErrors.password) {
+									setFieldErrors((prev) => ({
+										...prev,
+										password: '',
+									}));
+								}
 							}}
 						/>
+						{fieldErrors.password ? (
+							<ThemedText
+								lightColor='#ef4444'
+								darkColor='#fca5a5'
+								style={styles.fieldError}>
+								{fieldErrors.password}
+							</ThemedText>
+						) : null}
 					</View>
 					<View style={styles.fieldGroup}>
 						<ThemedText type='subtitle' style={styles.label}>
@@ -206,6 +308,10 @@ const styles = StyleSheet.create({
 	},
 	label: {
 		fontSize: 14,
+	},
+	fieldError: {
+		fontSize: 12,
+		marginTop: 4,
 	},
 	input: {
 		backgroundColor: 'rgba(15,23,42,0.6)',
