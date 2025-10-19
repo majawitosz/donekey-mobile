@@ -69,7 +69,6 @@ export default function RegisterScreen() {
 			setError('Kod firmy musi mieć co najmniej 2 znaki.');
 			return;
 		}
-		console.log(`${process.env.EXPO_PUBLIC_API_URL}/register`);
 		try {
 			const response = await fetch(
 				`${process.env.EXPO_PUBLIC_API_URL}/register`,
