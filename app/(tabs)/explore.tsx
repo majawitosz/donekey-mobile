@@ -73,6 +73,18 @@ export default function AvailabilityScreen() {
 		return `${formatDate(monday)}-${formatDate(sunday)} ${month}`;
 	};
 
+	const getMinTime = () => {
+		const date = new Date();
+		date.setHours(10, 0, 0, 0);
+		return date;
+	};
+
+	const getMaxTime = () => {
+		const date = new Date();
+		date.setHours(20, 30, 0, 0);
+		return date;
+	};
+
 	const getDateForDayOfWeek = (dayName: string) => {
 		const now = new Date();
 		const monday = new Date(now);
@@ -273,6 +285,8 @@ export default function AvailabilityScreen() {
 												}
 												mode='time'
 												display='default'
+												minimumDate={getMinTime()}
+												maximumDate={getMaxTime()}
 												onChange={(event, date) =>
 													updateAvailability(
 														day,
@@ -301,6 +315,8 @@ export default function AvailabilityScreen() {
 												}
 												mode='time'
 												display='default'
+												minimumDate={getMinTime()}
+												maximumDate={getMaxTime()}
 												onChange={(event, date) =>
 													updateAvailability(
 														day,
@@ -376,7 +392,7 @@ const styles = StyleSheet.create({
 		borderColor: 'rgba(148,163,184,0.2)',
 	},
 	dayBlockInactive: {
-		opacity: 0.5,
+		opacity: 0.7,
 	},
 	dayHeader: {
 		flexDirection: 'row',
