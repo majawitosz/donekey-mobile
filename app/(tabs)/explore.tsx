@@ -138,16 +138,6 @@ export default function AvailabilityScreen() {
 		// Validation: Check selected days for complete time slots and logical time order
 		for (const day of selectedDays) {
 			const dayAvailability = availability[day];
-			const hasFrom = dayAvailability.from !== null;
-			const hasTo = dayAvailability.to !== null;
-
-			// Selected days must have both times set
-			if (!hasFrom || !hasTo) {
-				setSubmitError(
-					`Dla ${day} musisz ustawić zarówno godzinę "od" jak i "do"`
-				);
-				return;
-			}
 
 			// If both times are set, "from" must be before "to"
 			if (dayAvailability.from! >= dayAvailability.to!) {
