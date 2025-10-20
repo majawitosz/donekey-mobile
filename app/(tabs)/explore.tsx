@@ -1,8 +1,16 @@
 /** @format */
 
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+	DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+	Platform,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -40,6 +48,8 @@ export default function AvailabilityScreen() {
 	const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
+	const [activePicker, setActivePicker] =
+		useState<{ day: string; field: 'from' | 'to' } | null>(null);
 
 	const getCurrentWeekRange = () => {
 		const now = new Date();
@@ -111,6 +121,42 @@ export default function AvailabilityScreen() {
 		}));
 	};
 
+	const handleTimeChange =
+		(day: string, field: 'from' | 'to') =>
+		(event: DateTimePickerEvent, date?: Date) => {
+			if (Platform.OS === 'android') {
+				if (event.type === 'set' && date) {
+					updateAvailability(day, field, date);
+				}
+				setActivePicker(null);
+				return;
+			}
+			if (event.type === 'set' && date) {
+				updateAvailability(day, field, date);
+			}
+		};
+
+	const getFallbackTime = () =>
+		new Date(new Date().setHours(0, 0, 0, 0));
+
+	const formatTime = (date: Date | null) => {
+		if (!date) {
+			return 'Wybierz godzinę';
+		}
+		const hours = date.getHours().toString().padStart(2, '0');
+		const minutes = date.getMinutes().toString().padStart(2, '0');
+		return `${hours}:${minutes}`;
+	};
+
+	const serializeTime = (date: Date | null) => {
+		if (!date) {
+			return null;
+		}
+		const hours = date.getHours().toString().padStart(2, '0');
+		const minutes = date.getMinutes().toString().padStart(2, '0');
+		return `${hours}:${minutes}`;
+	};
+
 	const toggleDaySelection = (day: string) => {
 		setSelectedDays((prev) => {
 			const newSelected = new Set(prev);
@@ -121,6 +167,9 @@ export default function AvailabilityScreen() {
 					...prev,
 					[day]: { from: null, to: null },
 				}));
+				setActivePicker((current) =>
+					current?.day === day ? null : current
+				);
 			} else {
 				// Zaznaczanie dnia
 				newSelected.add(day);
@@ -138,9 +187,11 @@ export default function AvailabilityScreen() {
 		// Validation: Check selected days for complete time slots and logical time order
 		for (const day of selectedDays) {
 			const dayAvailability = availability[day];
-
-			// If both times are set, "from" must be before "to"
-			if (dayAvailability.from! >= dayAvailability.to!) {
+			if (!dayAvailability.from || !dayAvailability.to) {
+				setSubmitError(`Uzupełnij obie godziny dla ${day}`);
+				return;
+			}
+			if (dayAvailability.from >= dayAvailability.to) {
 				setSubmitError(
 					`Dla ${day} godzina "od" musi być wcześniejsza niż godzina "do"`
 				);
@@ -153,20 +204,31 @@ export default function AvailabilityScreen() {
 
 		try {
 			// Transform availability data to API format - array of all 7 days
-			const availabilityData = DAYS_OF_WEEK.map((day) => ({
-				date: getDateForDayOfWeek(day),
-				available_slots:
-					availability[day].from && availability[day].to
-						? {
-								start: availability[day]
-									.from!.toTimeString()
-									.slice(0, 5), // HH:MM format
-								end: availability[day]
-									.to!.toTimeString()
-									.slice(0, 5),
-						  }
-						: null,
-			}));
+			const availabilityData = DAYS_OF_WEEK.map((day) => {
+				const from = serializeTime(availability[day].from);
+				const to = serializeTime(availability[day].to);
+				return {
+					date: getDateForDayOfWeek(day),
+					available_slots:
+						from && to
+							? {
+								start: from,
+								end: to,
+							  }
+							: null,
+				};
+			});
+
+			const payload = {
+				employee_id: user.id,
+				availabilities: availabilityData,
+			};
+
+			console.log('API endpoint:', `${process.env.EXPO_PUBLIC_API_URL}/availability`);
+			console.log(
+				'Payload wysyłany do API:',
+				JSON.stringify(payload, null, 2)
+			);
 
 			const response = await fetch(
 				`${process.env.EXPO_PUBLIC_API_URL}/availability`,
@@ -175,23 +237,9 @@ export default function AvailabilityScreen() {
 					headers: {
 						'Content-Type': 'application/json',
 					},
-					body: JSON.stringify({
-						employee_id: user.id,
-						availabilities: availabilityData,
-					}),
+					body: JSON.stringify(payload),
 				}
 			);
-			console.log('Wysyłane dane na backend:', {
-				url: `${process.env.EXPO_PUBLIC_API_URL}/availability`,
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: {
-					employee_id: user.id,
-					availabilities: availabilityData,
-				},
-			});
 			console.log('Response status:', response.status);
 			console.log('Response ok:', response.ok);
 			if (!response.ok) {
@@ -261,60 +309,56 @@ export default function AvailabilityScreen() {
 												style={styles.timeLabel}>
 												Od:
 											</ThemedText>
-											<DateTimePicker
-												value={
-													availability[day].from ||
-													new Date(
-														new Date().setHours(
-															0,
-															0,
-															0,
-															0
-														)
-													)
-												}
-												mode='time'
-												display='default'
-												minimumDate={getMinTime()}
-												maximumDate={getMaxTime()}
-												onChange={(event, date) =>
-													updateAvailability(
-														day,
-														'from',
-														date || null
-													)
-												}
-											/>
+											{Platform.OS === 'ios' ? (
+												<DateTimePicker
+													value={
+														availability[day].from || getFallbackTime()
+													}
+													mode='time'
+													display='spinner'
+													minimumDate={getMinTime()}
+													maximumDate={getMaxTime()}
+													onChange={handleTimeChange(day, 'from')}
+												/>
+											) : (
+												<Pressable
+													style={styles.timeButton}
+													onPress={() =>
+														setActivePicker({ day, field: 'from' })
+													}>
+													<ThemedText style={styles.timeDisplay}>
+														{formatTime(availability[day].from)}
+													</ThemedText>
+												</Pressable>
+											)}
 										</View>
 										<View style={styles.timeInputGroup}>
 											<ThemedText
 												style={styles.timeLabel}>
 												Do:
 											</ThemedText>
-											<DateTimePicker
-												value={
-													availability[day].to ||
-													new Date(
-														new Date().setHours(
-															0,
-															0,
-															0,
-															0
-														)
-													)
-												}
-												mode='time'
-												display='default'
-												minimumDate={getMinTime()}
-												maximumDate={getMaxTime()}
-												onChange={(event, date) =>
-													updateAvailability(
-														day,
-														'to',
-														date || null
-													)
-												}
-											/>
+											{Platform.OS === 'ios' ? (
+												<DateTimePicker
+													value={
+														availability[day].to || getFallbackTime()
+													}
+													mode='time'
+													display='spinner'
+													minimumDate={getMinTime()}
+													maximumDate={getMaxTime()}
+													onChange={handleTimeChange(day, 'to')}
+												/>
+											) : (
+												<Pressable
+													style={styles.timeButton}
+													onPress={() =>
+														setActivePicker({ day, field: 'to' })
+													}>
+													<ThemedText style={styles.timeDisplay}>
+														{formatTime(availability[day].to)}
+													</ThemedText>
+												</Pressable>
+											)}
 										</View>
 									</View>
 								)}
@@ -322,6 +366,24 @@ export default function AvailabilityScreen() {
 						);
 					})}
 				</View>
+
+				{Platform.OS === 'android' && activePicker ? (
+					<DateTimePicker
+						value={
+							availability[activePicker.day][activePicker.field] ||
+							getFallbackTime()
+						}
+						mode='time'
+						display='clock'
+						is24Hour
+						minimumDate={getMinTime()}
+						maximumDate={getMaxTime()}
+						onChange={handleTimeChange(
+							activePicker.day,
+							activePicker.field
+						)}
+					/>
+				) : null}
 
 				{submitError ? (
 					<ThemedText
@@ -435,11 +497,24 @@ const styles = StyleSheet.create({
 		color: '#f8fafc',
 		fontSize: 16,
 	},
+	timeButton: {
+		backgroundColor: 'rgba(15,23,42,0.4)',
+		borderWidth: 1,
+		borderColor: 'rgba(148,163,184,0.2)',
+		borderRadius: 8,
+		paddingHorizontal: 12,
+		paddingVertical: 12,
+		alignItems: 'center',
+		justifyContent: 'center',
+		minHeight: 48,
+		width: '100%',
+	},
 	timeDisplay: {
-		fontSize: 14,
+		fontSize: 16,
 		color: '#f8fafc',
 		textAlign: 'center',
-		marginTop: 4,
+		width: '100%',
+		fontVariant: ['tabular-nums'],
 	},
 	footer: {
 		marginTop: 32,
