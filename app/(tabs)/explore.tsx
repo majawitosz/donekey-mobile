@@ -1,12 +1,19 @@
 /** @format */
 
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/hooks/use-auth';
+import DateTimePicker, {
+	DateTimePickerAndroid,
+} from '@react-native-community/datetimepicker';
+import { useState } from 'react';
+import {
+	Platform,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	View,
+} from 'react-native';
 
 interface Availability {
 	[key: string]: {
@@ -27,7 +34,6 @@ const DAYS_OF_WEEK = [
 
 export default function AvailabilityScreen() {
 	const { user } = useAuth();
-
 	const [availability, setAvailability] = useState<Availability>({
 		Poniedziałek: { from: null, to: null },
 		Wtorek: { from: null, to: null },
@@ -40,6 +46,10 @@ export default function AvailabilityScreen() {
 	const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
+	const [showPicker, setShowPicker] = useState<{
+		day: string;
+		field: 'from' | 'to';
+	} | null>(null);
 
 	const getCurrentWeekRange = () => {
 		const now = new Date();
@@ -129,13 +139,30 @@ export default function AvailabilityScreen() {
 		});
 	};
 
+	const showTimePicker = (day: string, field: 'from' | 'to') => {
+		if (Platform.OS === 'android') {
+			DateTimePickerAndroid.open({
+				value: availability[day][field] || new Date(),
+				mode: 'time',
+				is24Hour: true,
+				minimumDate: getMinTime(),
+				maximumDate: getMaxTime(),
+				onChange: (event, selectedDate) => {
+					if (event.type === 'set') {
+						updateAvailability(day, field, selectedDate || null);
+					}
+				},
+			});
+		} else {
+			setShowPicker({ day, field }); // Pokaż picker na iOS
+		}
+	};
+
 	const handleSubmit = async () => {
 		if (!user?.id) {
 			setSubmitError('Musisz być zalogowany, aby wysłać dyspozycje');
 			return;
 		}
-
-		// Validation: Check selected days for complete time slots and logical time order
 		for (const day of selectedDays) {
 			const dayAvailability = availability[day];
 
@@ -181,19 +208,6 @@ export default function AvailabilityScreen() {
 					}),
 				}
 			);
-			console.log('Wysyłane dane na backend:', {
-				url: `${process.env.EXPO_PUBLIC_API_URL}/availability`,
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: {
-					employee_id: user.id,
-					availabilities: availabilityData,
-				},
-			});
-			console.log('Response status:', response.status);
-			console.log('Response ok:', response.ok);
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
 				throw new Error(
@@ -257,64 +271,87 @@ export default function AvailabilityScreen() {
 								{isSelected && (
 									<View style={styles.timeInputs}>
 										<View style={styles.timeInputGroup}>
-											<ThemedText
-												style={styles.timeLabel}>
-												Od:
-											</ThemedText>
-											<DateTimePicker
-												value={
-													availability[day].from ||
-													new Date(
-														new Date().setHours(
-															0,
-															0,
-															0,
-															0
-														)
-													)
-												}
-												mode='time'
-												display='default'
-												minimumDate={getMinTime()}
-												maximumDate={getMaxTime()}
-												onChange={(event, date) =>
-													updateAvailability(
-														day,
-														'from',
-														date || null
-													)
-												}
-											/>
+											<Pressable
+												onPress={() =>
+													showTimePicker(day, 'from')
+												}>
+												<ThemedText
+													style={styles.timeLabel}>
+													Od:{' '}
+													{availability[day].from
+														? availability[day]
+																.from!.toTimeString()
+																.slice(0, 5)
+														: '00:00'}
+												</ThemedText>
+											</Pressable>
+											{Platform.OS === 'ios' &&
+												showPicker?.day === day &&
+												showPicker?.field ===
+													'from' && (
+													<DateTimePicker
+														value={
+															availability[day]
+																.from ||
+															new Date()
+														}
+														mode='time'
+														display='default'
+														minimumDate={getMinTime()}
+														maximumDate={getMaxTime()}
+														onChange={(
+															event,
+															date
+														) =>
+															updateAvailability(
+																day,
+																'from',
+																date || null
+															)
+														}
+													/>
+												)}
 										</View>
 										<View style={styles.timeInputGroup}>
-											<ThemedText
-												style={styles.timeLabel}>
-												Do:
-											</ThemedText>
-											<DateTimePicker
-												value={
-													availability[day].to ||
-													new Date(
-														new Date().setHours(
-															0,
-															0,
-															0,
-															0
-														)
-													)
-												}
-												mode='time'
-												display='default'
-												minimumDate={getMinTime()}
-												maximumDate={getMaxTime()}
-												onChange={(event, date) =>
-													updateAvailability(
-														day,
-														'to',
-														date || null
-													)
-												}
-											/>
+											<Pressable
+												onPress={() =>
+													showTimePicker(day, 'to')
+												}>
+												<ThemedText
+													style={styles.timeLabel}>
+													Do:{' '}
+													{availability[day].to
+														? availability[day]
+																.to!.toTimeString()
+																.slice(0, 5)
+														: '00:00'}
+												</ThemedText>
+											</Pressable>
+											{Platform.OS === 'ios' &&
+												showPicker?.day === day &&
+												showPicker?.field === 'to' && (
+													<DateTimePicker
+														value={
+															availability[day]
+																.to ||
+															new Date()
+														}
+														mode='time'
+														display='default'
+														minimumDate={getMinTime()}
+														maximumDate={getMaxTime()}
+														onChange={(
+															event,
+															date
+														) =>
+															updateAvailability(
+																day,
+																'to',
+																date || null
+															)
+														}
+													/>
+												)}
 										</View>
 									</View>
 								)}
