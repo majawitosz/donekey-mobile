@@ -63,8 +63,9 @@ export default function LoginScreen() {
 
 			const responseData = await response.json();
 			const userData = responseData.user;
+			const accessToken = responseData.access_token;
 			setError(null);
-			login(userData);
+			login(userData, accessToken);
 			router.replace('/(tabs)');
 		} catch (err) {
 			setError(

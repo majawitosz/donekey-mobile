@@ -26,17 +26,20 @@ type User = {
 type AuthContextValue = {
 	isAuthenticated: boolean;
 	user: User | null;
-	login: (userData: User) => void;
+	accessToken: string | null;
+	login: (userData: User, token: string) => void;
 	logout: () => void;
 };
 
 const AUTH_STORAGE_KEY = '@auth/user_v2';
+const TOKEN_STORAGE_KEY = '@auth/token';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [user, setUser] = useState<User | null>(null);
+	const [accessToken, setAccessToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 
 	// Load user data from storage on app start
@@ -47,9 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				await AsyncStorage.removeItem('@auth/user');
 
 				const storedUser = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-				if (storedUser) {
+				const storedToken = await AsyncStorage.getItem(
+					TOKEN_STORAGE_KEY
+				);
+
+				if (storedUser && storedToken) {
 					const userData: User = JSON.parse(storedUser);
 					setUser(userData);
+					setAccessToken(storedToken);
 					setIsAuthenticated(true);
 				} else {
 					console.log('No stored user data found');
@@ -68,14 +76,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const saveUserData = async () => {
 			try {
-				if (user) {
+				if (user && accessToken) {
 					await AsyncStorage.setItem(
 						AUTH_STORAGE_KEY,
 						JSON.stringify(user)
 					);
+					await AsyncStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
 				} else {
 					console.log('Removing user data from storage');
 					await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+					await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
 				}
 			} catch (error) {
 				console.error('Error saving user data:', error);
@@ -85,27 +95,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		if (!isLoading) {
 			saveUserData();
 		}
-	}, [user, isLoading]);
+	}, [user, accessToken, isLoading]);
 
 	const value = useMemo(
 		() => ({
 			isAuthenticated,
 			user,
-			login: (userData: User) => {
+			accessToken,
+			login: (userData: User, token: string) => {
 				setIsAuthenticated(true);
 				setUser(userData);
+				setAccessToken(token);
 			},
 			logout: async () => {
 				setIsAuthenticated(false);
 				setUser(null);
+				setAccessToken(null);
 				try {
 					await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+					await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
 				} catch (error) {
 					console.error('Error clearing user data:', error);
 				}
 			},
 		}),
-		[isAuthenticated, user]
+		[isAuthenticated, user, accessToken]
 	);
 
 	// Don't render children until we've checked for stored user data

@@ -33,7 +33,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function AvailabilityScreen() {
-	const { user } = useAuth();
+	const { user, accessToken } = useAuth();
 	const [availability, setAvailability] = useState<Availability>({
 		Poniedziałek: { from: null, to: null },
 		Wtorek: { from: null, to: null },
@@ -201,6 +201,7 @@ export default function AvailabilityScreen() {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
+						Authorization: `Bearer ${accessToken}`,
 					},
 					body: JSON.stringify({
 						employee_id: user.id,
