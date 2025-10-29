@@ -62,10 +62,25 @@ export default function LoginScreen() {
 			}
 
 			const responseData = await response.json();
+			console.log('=== LOGIN RESPONSE ===');
+			console.log(
+				'Full response:',
+				JSON.stringify(responseData, null, 2)
+			);
+			console.log('User data:', responseData.user);
+			console.log('Access token:', responseData.access);
+			console.log('Refresh token:', responseData.refresh);
+
 			const userData = responseData.user;
-			const accessToken = responseData.access_token;
+			const accessToken = responseData.access;
+			const refreshToken = responseData.refresh;
+
+			if (!accessToken || !refreshToken) {
+				throw new Error('Brak tokenów w odpowiedzi z serwera');
+			}
+
 			setError(null);
-			login(userData, accessToken);
+			login(userData, accessToken, refreshToken);
 			router.replace('/(tabs)');
 		} catch (err) {
 			setError(
