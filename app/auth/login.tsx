@@ -1,7 +1,15 @@
 /** @format */
 
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import {
+	KeyboardAvoidingView,
+	Platform,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	TextInput,
+	View,
+} from 'react-native';
 
 import { Link, useLocalSearchParams, type Href } from 'expo-router';
 
@@ -93,98 +101,115 @@ export default function LoginScreen() {
 
 	return (
 		<ThemedView style={styles.container}>
-			<View style={styles.card}>
-				<View style={styles.header}>
-					<ThemedText type='title'>Zaloguj się</ThemedText>
-					<ThemedText style={styles.subtitle}>
-						Wprowadź swoje dane, aby uzyskać dostęp do aplikacji.
-					</ThemedText>
-				</View>
-				<View style={styles.fieldGroup}>
-					<ThemedText type='subtitle' style={styles.label}>
-						E-mail
-					</ThemedText>
-					<TextInput
-						autoCapitalize='none'
-						autoCorrect={false}
-						keyboardType='email-address'
-						placeholder='adres@example.com'
-						placeholderTextColor='rgba(148,163,184,0.7)'
-						style={styles.input}
-						value={email}
-						onChangeText={(value) => {
-							setEmail(value);
-							if (error) {
-								setError(null);
-							}
-							if (fieldErrors.email) {
-								setFieldErrors((prev) => ({
-									...prev,
-									email: '',
-								}));
-							}
-						}}
-					/>
-					{fieldErrors.email ? (
-						<ThemedText
-							lightColor='#ef4444'
-							darkColor='#fca5a5'
-							style={styles.fieldError}>
-							{fieldErrors.email}
-						</ThemedText>
-					) : null}
-				</View>
-				<View style={styles.fieldGroup}>
-					<ThemedText type='subtitle' style={styles.label}>
-						Hasło
-					</ThemedText>
-					<TextInput
-						secureTextEntry
-						placeholder='••••••••'
-						placeholderTextColor='rgba(148,163,184,0.7)'
-						style={styles.input}
-						value={password}
-						onChangeText={(value) => {
-							setPassword(value);
-							if (error) {
-								setError(null);
-							}
-							if (fieldErrors.password) {
-								setFieldErrors((prev) => ({
-									...prev,
-									password: '',
-								}));
-							}
-						}}
-					/>
-					{fieldErrors.password ? (
-						<ThemedText
-							lightColor='#ef4444'
-							darkColor='#fca5a5'
-							style={styles.fieldError}>
-							{fieldErrors.password}
-						</ThemedText>
-					) : null}
-				</View>
-				{error ? (
-					<ThemedText lightColor='#ef4444' darkColor='#fca5a5'>
-						{error}
-					</ThemedText>
-				) : null}
-				<Pressable style={styles.primaryButton} onPress={handleSubmit}>
-					<ThemedText
-						type='defaultSemiBold'
-						style={styles.primaryText}>
-						Zaloguj się
-					</ThemedText>
-				</Pressable>
-				<View style={styles.footer}>
-					<ThemedText>Nie masz konta?</ThemedText>
-					<Link href={registerHref}>
-						<ThemedText type='link'>Załóż je tutaj</ThemedText>
-					</Link>
-				</View>
-			</View>
+			<KeyboardAvoidingView
+				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+				style={styles.keyboardView}
+				keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+				<ScrollView
+					contentContainerStyle={styles.scrollContent}
+					keyboardShouldPersistTaps='handled'
+					showsVerticalScrollIndicator={false}>
+					<View style={styles.card}>
+						<View style={styles.header}>
+							<ThemedText type='title'>Zaloguj się</ThemedText>
+							<ThemedText style={styles.subtitle}>
+								Wprowadź swoje dane, aby uzyskać dostęp do
+								aplikacji.
+							</ThemedText>
+						</View>
+						<View style={styles.fieldGroup}>
+							<ThemedText type='subtitle' style={styles.label}>
+								E-mail
+							</ThemedText>
+							<TextInput
+								autoCapitalize='none'
+								autoCorrect={false}
+								keyboardType='email-address'
+								placeholder='adres@example.com'
+								placeholderTextColor='rgba(148,163,184,0.7)'
+								style={styles.input}
+								value={email}
+								onChangeText={(value) => {
+									setEmail(value);
+									if (error) {
+										setError(null);
+									}
+									if (fieldErrors.email) {
+										setFieldErrors((prev) => ({
+											...prev,
+											email: '',
+										}));
+									}
+								}}
+							/>
+							{fieldErrors.email ? (
+								<ThemedText
+									lightColor='#ef4444'
+									darkColor='#fca5a5'
+									style={styles.fieldError}>
+									{fieldErrors.email}
+								</ThemedText>
+							) : null}
+						</View>
+						<View style={styles.fieldGroup}>
+							<ThemedText type='subtitle' style={styles.label}>
+								Hasło
+							</ThemedText>
+							<TextInput
+								secureTextEntry
+								placeholder='••••••••'
+								placeholderTextColor='rgba(148,163,184,0.7)'
+								style={styles.input}
+								value={password}
+								onChangeText={(value) => {
+									setPassword(value);
+									if (error) {
+										setError(null);
+									}
+									if (fieldErrors.password) {
+										setFieldErrors((prev) => ({
+											...prev,
+											password: '',
+										}));
+									}
+								}}
+							/>
+							{fieldErrors.password ? (
+								<ThemedText
+									lightColor='#ef4444'
+									darkColor='#fca5a5'
+									style={styles.fieldError}>
+									{fieldErrors.password}
+								</ThemedText>
+							) : null}
+						</View>
+						{error ? (
+							<ThemedText
+								lightColor='#ef4444'
+								darkColor='#fca5a5'>
+								{error}
+							</ThemedText>
+						) : null}
+						<Pressable
+							style={styles.primaryButton}
+							onPress={handleSubmit}>
+							<ThemedText
+								type='defaultSemiBold'
+								style={styles.primaryText}>
+								Zaloguj się
+							</ThemedText>
+						</Pressable>
+						<View style={styles.footer}>
+							<ThemedText>Nie masz konta?</ThemedText>
+							<Link href={registerHref}>
+								<ThemedText type='link'>
+									Załóż je tutaj
+								</ThemedText>
+							</Link>
+						</View>
+					</View>
+				</ScrollView>
+			</KeyboardAvoidingView>
 		</ThemedView>
 	);
 }
@@ -193,6 +218,12 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		padding: 24,
+	},
+	keyboardView: {
+		flex: 1,
+	},
+	scrollContent: {
+		flexGrow: 1,
 	},
 	card: {
 		flex: 1,

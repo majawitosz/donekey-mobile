@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import {
+	KeyboardAvoidingView,
+	Platform,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -103,184 +105,194 @@ export default function RegisterCompanyScreen() {
 
 	return (
 		<ThemedView style={styles.container}>
-			<ScrollView
-				contentContainerStyle={styles.content}
-				keyboardShouldPersistTaps='handled'>
-				<View style={styles.card}>
-					<View style={styles.header}>
-						<ThemedText type='title'>Rejestracja firmy</ThemedText>
-						<ThemedText style={styles.subtitle}>
-							Utwórz konto firmowe, aby zarządzać zespołem i
-							zleceniami.
-						</ThemedText>
-					</View>
-					<View style={styles.fieldGroup}>
-						<ThemedText type='subtitle' style={styles.label}>
-							Nazwa firmy
-						</ThemedText>
-						<TextInput
-							placeholder='DoneKey Sp. z o.o.'
-							placeholderTextColor='rgba(148,163,184,0.7)'
-							style={styles.input}
-							value={companyName}
-							onChangeText={(value) => {
-								setCompanyName(value);
-								if (error) setError(null);
-								if (fieldErrors.company_name) {
-									setFieldErrors((prev) => ({
-										...prev,
-										company_name: '',
-									}));
-								}
-							}}
-						/>
-						{fieldErrors.company_name ? (
+			<KeyboardAvoidingView
+				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+				style={styles.keyboardView}
+				keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+				<ScrollView
+					contentContainerStyle={styles.content}
+					keyboardShouldPersistTaps='handled'
+					showsVerticalScrollIndicator={false}>
+					<View style={styles.card}>
+						<View style={styles.header}>
+							<ThemedText type='title'>
+								Rejestracja firmy
+							</ThemedText>
+							<ThemedText style={styles.subtitle}>
+								Utwórz konto firmowe, aby zarządzać zespołem i
+								zleceniami.
+							</ThemedText>
+						</View>
+						<View style={styles.fieldGroup}>
+							<ThemedText type='subtitle' style={styles.label}>
+								Nazwa firmy
+							</ThemedText>
+							<TextInput
+								placeholder='DoneKey Sp. z o.o.'
+								placeholderTextColor='rgba(148,163,184,0.7)'
+								style={styles.input}
+								value={companyName}
+								onChangeText={(value) => {
+									setCompanyName(value);
+									if (error) setError(null);
+									if (fieldErrors.company_name) {
+										setFieldErrors((prev) => ({
+											...prev,
+											company_name: '',
+										}));
+									}
+								}}
+							/>
+							{fieldErrors.company_name ? (
+								<ThemedText
+									lightColor='#ef4444'
+									darkColor='#fca5a5'
+									style={styles.fieldError}>
+									{fieldErrors.company_name}
+								</ThemedText>
+							) : null}
+						</View>
+						<View style={styles.fieldGroup}>
+							<ThemedText type='subtitle' style={styles.label}>
+								NIP
+							</ThemedText>
+							<TextInput
+								keyboardType='number-pad'
+								placeholder='1234567890'
+								placeholderTextColor='rgba(148,163,184,0.7)'
+								style={styles.input}
+								value={nip}
+								onChangeText={(value) => {
+									setNip(value);
+									if (error) setError(null);
+									if (fieldErrors.nip) {
+										setFieldErrors((prev) => ({
+											...prev,
+											nip: '',
+										}));
+									}
+								}}
+							/>
+							{fieldErrors.nip ? (
+								<ThemedText
+									lightColor='#ef4444'
+									darkColor='#fca5a5'
+									style={styles.fieldError}>
+									{fieldErrors.nip}
+								</ThemedText>
+							) : null}
+						</View>
+						<View style={styles.fieldGroup}>
+							<ThemedText type='subtitle' style={styles.label}>
+								E-mail firmowy
+							</ThemedText>
+							<TextInput
+								autoCapitalize='none'
+								autoCorrect={false}
+								keyboardType='email-address'
+								placeholder='kontakt@donekey.pl'
+								placeholderTextColor='rgba(148,163,184,0.7)'
+								style={styles.input}
+								value={email}
+								onChangeText={(value) => {
+									setEmail(value);
+									if (error) setError(null);
+									if (fieldErrors.email) {
+										setFieldErrors((prev) => ({
+											...prev,
+											email: '',
+										}));
+									}
+								}}
+							/>
+							{fieldErrors.email ? (
+								<ThemedText
+									lightColor='#ef4444'
+									darkColor='#fca5a5'
+									style={styles.fieldError}>
+									{fieldErrors.email}
+								</ThemedText>
+							) : null}
+						</View>
+						<View style={styles.fieldGroup}>
+							<ThemedText type='subtitle' style={styles.label}>
+								Hasło
+							</ThemedText>
+							<TextInput
+								secureTextEntry
+								placeholder='••••••••'
+								placeholderTextColor='rgba(148,163,184,0.7)'
+								style={styles.input}
+								value={password}
+								onChangeText={(value) => {
+									setPassword(value);
+									if (error) setError(null);
+									if (fieldErrors.password) {
+										setFieldErrors((prev) => ({
+											...prev,
+											password: '',
+										}));
+									}
+								}}
+							/>
+							{fieldErrors.password ? (
+								<ThemedText
+									lightColor='#ef4444'
+									darkColor='#fca5a5'
+									style={styles.fieldError}>
+									{fieldErrors.password}
+								</ThemedText>
+							) : null}
+						</View>
+						<View style={styles.fieldGroup}>
+							<ThemedText type='subtitle' style={styles.label}>
+								Powtórz hasło
+							</ThemedText>
+							<TextInput
+								secureTextEntry
+								placeholder='••••••••'
+								placeholderTextColor='rgba(148,163,184,0.7)'
+								style={styles.input}
+								value={confirmPassword}
+								onChangeText={(value) => {
+									setConfirmPassword(value);
+									if (error) setError(null);
+								}}
+							/>
+						</View>
+						{error ? (
 							<ThemedText
 								lightColor='#ef4444'
-								darkColor='#fca5a5'
-								style={styles.fieldError}>
-								{fieldErrors.company_name}
+								darkColor='#fca5a5'>
+								{error}
 							</ThemedText>
 						) : null}
-					</View>
-					<View style={styles.fieldGroup}>
-						<ThemedText type='subtitle' style={styles.label}>
-							NIP
-						</ThemedText>
-						<TextInput
-							keyboardType='number-pad'
-							placeholder='1234567890'
-							placeholderTextColor='rgba(148,163,184,0.7)'
-							style={styles.input}
-							value={nip}
-							onChangeText={(value) => {
-								setNip(value);
-								if (error) setError(null);
-								if (fieldErrors.nip) {
-									setFieldErrors((prev) => ({
-										...prev,
-										nip: '',
-									}));
-								}
-							}}
-						/>
-						{fieldErrors.nip ? (
+						<Pressable
+							style={styles.primaryButton}
+							onPress={handleSubmit}>
 							<ThemedText
-								lightColor='#ef4444'
-								darkColor='#fca5a5'
-								style={styles.fieldError}>
-								{fieldErrors.nip}
+								type='defaultSemiBold'
+								style={styles.primaryText}>
+								Utwórz konto firmowe
 							</ThemedText>
-						) : null}
+						</Pressable>
+						<View style={styles.footer}>
+							<ThemedText>Wolisz konto pracownika?</ThemedText>
+							<Link href={workerRegisterHref}>
+								<ThemedText type='link'>
+									Zarejestruj się jako pracownik
+								</ThemedText>
+							</Link>
+						</View>
+						<View style={styles.footer}>
+							<ThemedText>Masz już firmę w DoneKey?</ThemedText>
+							<Link href={loginHref}>
+								<ThemedText type='link'>Zaloguj się</ThemedText>
+							</Link>
+						</View>
 					</View>
-					<View style={styles.fieldGroup}>
-						<ThemedText type='subtitle' style={styles.label}>
-							E-mail firmowy
-						</ThemedText>
-						<TextInput
-							autoCapitalize='none'
-							autoCorrect={false}
-							keyboardType='email-address'
-							placeholder='kontakt@donekey.pl'
-							placeholderTextColor='rgba(148,163,184,0.7)'
-							style={styles.input}
-							value={email}
-							onChangeText={(value) => {
-								setEmail(value);
-								if (error) setError(null);
-								if (fieldErrors.email) {
-									setFieldErrors((prev) => ({
-										...prev,
-										email: '',
-									}));
-								}
-							}}
-						/>
-						{fieldErrors.email ? (
-							<ThemedText
-								lightColor='#ef4444'
-								darkColor='#fca5a5'
-								style={styles.fieldError}>
-								{fieldErrors.email}
-							</ThemedText>
-						) : null}
-					</View>
-					<View style={styles.fieldGroup}>
-						<ThemedText type='subtitle' style={styles.label}>
-							Hasło
-						</ThemedText>
-						<TextInput
-							secureTextEntry
-							placeholder='••••••••'
-							placeholderTextColor='rgba(148,163,184,0.7)'
-							style={styles.input}
-							value={password}
-							onChangeText={(value) => {
-								setPassword(value);
-								if (error) setError(null);
-								if (fieldErrors.password) {
-									setFieldErrors((prev) => ({
-										...prev,
-										password: '',
-									}));
-								}
-							}}
-						/>
-						{fieldErrors.password ? (
-							<ThemedText
-								lightColor='#ef4444'
-								darkColor='#fca5a5'
-								style={styles.fieldError}>
-								{fieldErrors.password}
-							</ThemedText>
-						) : null}
-					</View>
-					<View style={styles.fieldGroup}>
-						<ThemedText type='subtitle' style={styles.label}>
-							Powtórz hasło
-						</ThemedText>
-						<TextInput
-							secureTextEntry
-							placeholder='••••••••'
-							placeholderTextColor='rgba(148,163,184,0.7)'
-							style={styles.input}
-							value={confirmPassword}
-							onChangeText={(value) => {
-								setConfirmPassword(value);
-								if (error) setError(null);
-							}}
-						/>
-					</View>
-					{error ? (
-						<ThemedText lightColor='#ef4444' darkColor='#fca5a5'>
-							{error}
-						</ThemedText>
-					) : null}
-					<Pressable
-						style={styles.primaryButton}
-						onPress={handleSubmit}>
-						<ThemedText
-							type='defaultSemiBold'
-							style={styles.primaryText}>
-							Utwórz konto firmowe
-						</ThemedText>
-					</Pressable>
-					<View style={styles.footer}>
-						<ThemedText>Wolisz konto pracownika?</ThemedText>
-						<Link href={workerRegisterHref}>
-							<ThemedText type='link'>
-								Zarejestruj się jako pracownik
-							</ThemedText>
-						</Link>
-					</View>
-					<View style={styles.footer}>
-						<ThemedText>Masz już firmę w DoneKey?</ThemedText>
-						<Link href={loginHref}>
-							<ThemedText type='link'>Zaloguj się</ThemedText>
-						</Link>
-					</View>
-				</View>
-			</ScrollView>
+				</ScrollView>
+			</KeyboardAvoidingView>
 		</ThemedView>
 	);
 }
@@ -289,6 +301,9 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		padding: 24,
+	},
+	keyboardView: {
+		flex: 1,
 	},
 	content: {
 		flexGrow: 1,
