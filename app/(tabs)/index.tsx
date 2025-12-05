@@ -1,15 +1,15 @@
 /** @format */
 
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Alert } from 'react-native';
 import { useState } from 'react';
+import { Alert, Pressable, StyleSheet } from 'react-native';
 
+import { AttendanceControl } from '@/components/attendance-control';
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/hooks/use-auth';
-import { AttendanceControl } from '@/components/attendance-control';
 import { Coordinates } from '@/hooks/use-location';
 
 export default function HomeScreen() {

@@ -1,9 +1,9 @@
+import { Coordinates, useLocation } from '@/hooks/use-location';
 import { useState } from 'react';
-import { StyleSheet, View, ActivityIndicator, Alert } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { ThemedButton as Button } from './ui/button';
-import { useLocation, Coordinates } from '@/hooks/use-location';
 
 type AttendanceControlProps = {
   isWorking: boolean;
