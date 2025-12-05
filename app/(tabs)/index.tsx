@@ -1,16 +1,41 @@
 /** @format */
 
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Alert } from 'react-native';
+import { useState } from 'react';
 
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/hooks/use-auth';
+import { AttendanceControl } from '@/components/attendance-control';
+import { Coordinates } from '@/hooks/use-location';
 
 export default function HomeScreen() {
 	const { user, logout } = useAuth();
+	const [isWorking, setIsWorking] = useState(false);
+
+	// Mock workplace coordinates (Example: Warsaw Palace of Culture)
+	// In production, this should come from the backend/user profile
+	const workplaceCoords = {
+		latitude: 52.2319,
+		longitude: 21.0067,
+	};
+
+	const handleCheckIn = async (location: Coordinates) => {
+		// TODO: Call backend API to register check-in
+		console.log('Check in at', location);
+		setIsWorking(true);
+		Alert.alert('Sukces', 'Rozpoczęto pracę!');
+	};
+
+	const handleCheckOut = async (location: Coordinates) => {
+		// TODO: Call backend API to register check-out
+		console.log('Check out at', location);
+		setIsWorking(false);
+		Alert.alert('Sukces', 'Zakończono pracę!');
+	};
 
 	const handleLogout = async () => {
 		await logout();
@@ -43,6 +68,14 @@ export default function HomeScreen() {
 					<ThemedText>Firma: {user.company_name}</ThemedText>
 				</ThemedView>
 			)}
+
+			<AttendanceControl
+				isWorking={isWorking}
+				workplaceCoordinates={workplaceCoords}
+				geofenceRadius={150} // 150 meters
+				onCheckIn={handleCheckIn}
+				onCheckOut={handleCheckOut}
+			/>
 
 			<ThemedView style={styles.stepContainer}>
 				<ThemedText type='subtitle'>Dyspozycje</ThemedText>
