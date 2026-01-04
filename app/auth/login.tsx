@@ -1,8 +1,8 @@
 /** @format */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Link, useLocalSearchParams, type Href } from 'expo-router';
 
