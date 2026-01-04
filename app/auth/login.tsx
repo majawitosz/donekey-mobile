@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Link, useLocalSearchParams, type Href } from 'expo-router';
 
@@ -62,7 +63,66 @@ export default function LoginScreen() {
 			}
 
 			const responseData = await response.json();
-			const userData = responseData.user;
+			console.log('Login response:', JSON.stringify(responseData, null, 2));
+			
+			if (responseData.token) {
+				await AsyncStorage.setItem('@auth/token', responseData.token);
+			} else if (responseData.access) {
+				await AsyncStorage.setItem('@auth/token', responseData.access);
+			}
+
+			let userData = responseData.user;
+
+			// Check if we have a token but missing user data or missing user ID
+			const token = responseData.token || responseData.access;
+			const isUserIncomplete = !userData || (!userData.id && !userData.pk);
+
+			if (token && isUserIncomplete) {
+				console.log('User data incomplete or missing, fetching profile...');
+				try {
+					// Try /users/me/ first
+					let userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/me/`, {
+						headers: {
+							'Authorization': `Bearer ${token}`,
+							'Content-Type': 'application/json',
+						},
+					});
+					
+					if (userResponse.ok) {
+						const fullUserData = await userResponse.json();
+						// Merge or overwrite. If userData was null, it becomes fullUserData.
+						// If userData existed, we overwrite it to ensure we have the ID.
+						userData = fullUserData;
+					} else {
+						console.log('Failed to fetch /users/me/, trying /auth/user/');
+						// Try alternative endpoint /auth/user/
+						userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/user/`, {
+							headers: {
+								'Authorization': `Bearer ${token}`,
+								'Content-Type': 'application/json',
+							},
+						});
+						if (userResponse.ok) {
+							userData = await userResponse.json();
+						} else {
+							console.log('Failed to fetch /auth/user/');
+						}
+					}
+				} catch (e) {
+					console.error('Failed to fetch user profile', e);
+				}
+			}
+
+			if (!userData) {
+				setError('Zalogowano, ale nie udało się pobrać danych użytkownika.');
+				return;
+			}
+
+			// Normalize user data: ensure 'id' exists (map from 'pk' if necessary)
+			if (!userData.id && userData.pk) {
+				userData.id = userData.pk;
+			}
+
 			setError(null);
 			login(userData);
 			router.replace('/(tabs)');

@@ -92,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			isAuthenticated,
 			user,
 			login: (userData: User) => {
+				console.log('AuthProvider login called with:', userData);
 				setIsAuthenticated(true);
 				setUser(userData);
 			},
