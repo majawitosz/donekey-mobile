@@ -33,7 +33,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function AvailabilityScreen() {
-	const { user } = useAuth();
+	const { user, accessToken, refreshAccessToken } = useAuth();
 	const [availability, setAvailability] = useState<Availability>({
 		Poniedziałek: { from: null, to: null },
 		Wtorek: { from: null, to: null },
@@ -178,43 +178,90 @@ export default function AvailabilityScreen() {
 		setIsSubmitting(true);
 		setSubmitError(null);
 
+		console.log('=== DEBUG AVAILABILITY REQUEST ===');
+		console.log('User ID:', user?.id);
+		console.log('Access Token:', accessToken);
+		console.log('Token exists:', !!accessToken);
+
 		try {
 			// Transform availability data to API format - array of all 7 days
 			const availabilityData = DAYS_OF_WEEK.map((day) => ({
 				date: getDateForDayOfWeek(day),
+				experienced: false, // Default value - można później dodać pole w UI
+				hours_min: 0, // Default value - można później dodać pole w UI
+				hours_max: 8, // Default value - można później dodać pole w UI
 				available_slots:
 					availability[day].from && availability[day].to
-						? {
-								start: availability[day]
-									.from!.toTimeString()
-									.slice(0, 5), // HH:MM format
-								end: availability[day]
-									.to!.toTimeString()
-									.slice(0, 5),
-						  }
-						: null,
+						? [
+								{
+									start: availability[day]
+										.from!.toTimeString()
+										.slice(0, 5), // HH:MM format
+									end: availability[day]
+										.to!.toTimeString()
+										.slice(0, 5),
+								},
+						  ]
+						: [],
 			}));
 
+			// Wrap in the structure backend expects
+			const payload = {
+				employee_id: user.id.toString(),
+				availabilities: availabilityData,
+			};
+
+			console.log(
+				'Sending availability data:',
+				JSON.stringify(payload, null, 2)
+			);
+
 			const response = await fetch(
-				`${process.env.EXPO_PUBLIC_API_URL}/availability`,
+				`${process.env.EXPO_PUBLIC_API_URL_SCHEDULE}/availability/bulk`,
 				{
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
+						Authorization: `Bearer ${accessToken}`,
 					},
-					body: JSON.stringify({
-						employee_id: user.id,
-						availabilities: availabilityData,
-					}),
+					body: JSON.stringify(payload),
 				}
 			);
+
+			console.log('Response status:', response.status);
+			console.log('Response ok:', response.ok);
+
 			if (!response.ok) {
+				// Handle 401 Unauthorized - try to refresh token
+				if (response.status === 401) {
+					console.log('Got 401, attempting to refresh token...');
+					const refreshed = await refreshAccessToken();
+
+					if (refreshed) {
+						console.log('Token refreshed, retrying request...');
+						// Retry the request with new token
+						return handleSubmit();
+					} else {
+						throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+					}
+				}
+
 				const errorData = await response.json().catch(() => ({}));
+				console.log(
+					'Error response:',
+					JSON.stringify(errorData, null, 2)
+				);
 				throw new Error(
 					errorData.detail ||
 						'Wystąpił błąd podczas wysyłania dyspozycji'
 				);
 			}
+
+			const successData = await response.json().catch(() => ({}));
+			console.log(
+				'Success response:',
+				JSON.stringify(successData, null, 2)
+			);
 		} catch (err) {
 			setSubmitError(
 				err instanceof Error
