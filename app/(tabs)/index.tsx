@@ -1,6 +1,5 @@
 /** @format */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
@@ -20,30 +19,30 @@ type WorkplaceConfig = {
 };
 
 export default function HomeScreen() {
-	const { user, logout } = useAuth();
+	const { user, logout, accessToken } = useAuth();
 	const [isWorking, setIsWorking] = useState(false);
-	const [workplaceConfig, setWorkplaceConfig] = useState<WorkplaceConfig | null>(null);
+	const [workplaceConfig, setWorkplaceConfig] =
+		useState<WorkplaceConfig | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
-	const [token, setToken] = useState<string | null>(null);
 
 	useEffect(() => {
 		const initialize = async () => {
-			try {
-				const storedToken = await AsyncStorage.getItem('@auth/token');
-				if (!storedToken) {
-					// Handle missing token if necessary, though auth provider should handle redirect
-					setIsLoading(false);
-					return;
-				}
-				setToken(storedToken);
+			if (!accessToken) {
+				setIsLoading(false);
+				return;
+			}
 
+			try {
 				// Fetch workplace config
-				const configResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/workplace/config/`, {
-					headers: {
-						'Authorization': `Bearer ${storedToken}`,
-						'Content-Type': 'application/json',
-					},
-				});
+				const configResponse = await fetch(
+					`${process.env.EXPO_PUBLIC_API_URL}/workplace/config/`,
+					{
+						headers: {
+							Authorization: `Bearer ${accessToken}`,
+							'Content-Type': 'application/json',
+						},
+					}
+				);
 
 				if (configResponse.ok) {
 					const configData = await configResponse.json();
@@ -57,12 +56,15 @@ export default function HomeScreen() {
 				}
 
 				// Fetch attendance status
-				const statusResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/attendance/status/`, {
-					headers: {
-						'Authorization': `Bearer ${storedToken}`,
-						'Content-Type': 'application/json',
-					},
-				});
+				const statusResponse = await fetch(
+					`${process.env.EXPO_PUBLIC_API_URL}/attendance/status/`,
+					{
+						headers: {
+							Authorization: `Bearer ${accessToken}`,
+							'Content-Type': 'application/json',
+						},
+					}
+				);
 
 				if (statusResponse.ok) {
 					const statusData = await statusResponse.json();
@@ -70,7 +72,6 @@ export default function HomeScreen() {
 				} else {
 					console.error('Failed to fetch attendance status');
 				}
-
 			} catch (error) {
 				console.error('Error initializing home screen:', error);
 				Alert.alert('Błąd', 'Nie udało się pobrać danych z serwera.');
@@ -79,37 +80,54 @@ export default function HomeScreen() {
 			}
 		};
 
-		if (user) {
+		if (user && accessToken) {
 			initialize();
 		}
-	}, [user]);
+	}, [user, accessToken]);
 
-	const handleAttendanceEvent = async (type: 'check_in' | 'check_out', location: Coordinates) => {
-		if (!token) return;
+	const handleAttendanceEvent = async (
+		type: 'check_in' | 'check_out',
+		location: Coordinates
+	) => {
+		if (!accessToken) return;
 
 		try {
-			const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/attendance/event/`, {
-				method: 'POST',
-				headers: {
-					'Authorization': `Bearer ${token}`,
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					type,
-					latitude: location.latitude.toFixed(6),
-					longitude: location.longitude.toFixed(6),
-					timestamp: new Date().toISOString(),
-				}),
-			});
+			const response = await fetch(
+				`${process.env.EXPO_PUBLIC_API_URL}/attendance/event/`,
+				{
+					method: 'POST',
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						type,
+						latitude: location.latitude.toFixed(6),
+						longitude: location.longitude.toFixed(6),
+						timestamp: new Date().toISOString(),
+					}),
+				}
+			);
 
 			if (response.ok) {
 				const data = await response.json();
 				setIsWorking(type === 'check_in');
-				Alert.alert('Sukces', type === 'check_in' ? 'Rozpoczęto pracę!' : 'Zakończono pracę!');
+				Alert.alert(
+					'Sukces',
+					type === 'check_in'
+						? 'Rozpoczęto pracę!'
+						: 'Zakończono pracę!'
+				);
 			} else {
 				const errorData = await response.json().catch(() => ({}));
 				console.error('Attendance error:', response.status, errorData);
-				Alert.alert('Błąd', errorData.detail || errorData.message || JSON.stringify(errorData) || 'Wystąpił błąd podczas rejestracji zdarzenia.');
+				Alert.alert(
+					'Błąd',
+					errorData.detail ||
+						errorData.message ||
+						JSON.stringify(errorData) ||
+						'Wystąpił błąd podczas rejestracji zdarzenia.'
+				);
 			}
 		} catch (error) {
 			console.error('Error registering attendance event:', error);
@@ -158,7 +176,7 @@ export default function HomeScreen() {
 			)}
 
 			{isLoading ? (
-				<ActivityIndicator size="large" color="#0000ff" />
+				<ActivityIndicator size='large' color='#c9c9c9ff' />
 			) : workplaceConfig ? (
 				<AttendanceControl
 					isWorking={isWorking}
@@ -168,7 +186,9 @@ export default function HomeScreen() {
 					onCheckOut={handleCheckOut}
 				/>
 			) : (
-				<ThemedText>Nie udało się pobrać konfiguracji miejsca pracy.</ThemedText>
+				<ThemedText>
+					Nie udało się pobrać konfiguracji miejsca pracy.
+				</ThemedText>
 			)}
 
 			<ThemedView style={styles.stepContainer}>
