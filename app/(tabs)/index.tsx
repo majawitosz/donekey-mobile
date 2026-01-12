@@ -1,16 +1,129 @@
 /** @format */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
 
+import { AttendanceControl } from '@/components/attendance-control';
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/hooks/use-auth';
+import { Coordinates } from '@/hooks/use-location';
+
+type WorkplaceConfig = {
+	latitude: number;
+	longitude: number;
+	radius: number;
+};
 
 export default function HomeScreen() {
 	const { user, logout } = useAuth();
+	const [isWorking, setIsWorking] = useState(false);
+	const [workplaceConfig, setWorkplaceConfig] = useState<WorkplaceConfig | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+	const [token, setToken] = useState<string | null>(null);
+
+	useEffect(() => {
+		const initialize = async () => {
+			try {
+				const storedToken = await AsyncStorage.getItem('@auth/token');
+				if (!storedToken) {
+					// Handle missing token if necessary, though auth provider should handle redirect
+					setIsLoading(false);
+					return;
+				}
+				setToken(storedToken);
+
+				// Fetch workplace config
+				const configResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/workplace/config/`, {
+					headers: {
+						'Authorization': `Bearer ${storedToken}`,
+						'Content-Type': 'application/json',
+					},
+				});
+
+				if (configResponse.ok) {
+					const configData = await configResponse.json();
+					setWorkplaceConfig({
+						latitude: parseFloat(configData.latitude),
+						longitude: parseFloat(configData.longitude),
+						radius: configData.radius || 150,
+					});
+				} else {
+					console.error('Failed to fetch workplace config');
+				}
+
+				// Fetch attendance status
+				const statusResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/attendance/status/`, {
+					headers: {
+						'Authorization': `Bearer ${storedToken}`,
+						'Content-Type': 'application/json',
+					},
+				});
+
+				if (statusResponse.ok) {
+					const statusData = await statusResponse.json();
+					setIsWorking(statusData.is_working);
+				} else {
+					console.error('Failed to fetch attendance status');
+				}
+
+			} catch (error) {
+				console.error('Error initializing home screen:', error);
+				Alert.alert('Błąd', 'Nie udało się pobrać danych z serwera.');
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		if (user) {
+			initialize();
+		}
+	}, [user]);
+
+	const handleAttendanceEvent = async (type: 'check_in' | 'check_out', location: Coordinates) => {
+		if (!token) return;
+
+		try {
+			const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/attendance/event/`, {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${token}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					type,
+					latitude: location.latitude.toFixed(6),
+					longitude: location.longitude.toFixed(6),
+					timestamp: new Date().toISOString(),
+				}),
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				setIsWorking(type === 'check_in');
+				Alert.alert('Sukces', type === 'check_in' ? 'Rozpoczęto pracę!' : 'Zakończono pracę!');
+			} else {
+				const errorData = await response.json().catch(() => ({}));
+				console.error('Attendance error:', response.status, errorData);
+				Alert.alert('Błąd', errorData.detail || errorData.message || JSON.stringify(errorData) || 'Wystąpił błąd podczas rejestracji zdarzenia.');
+			}
+		} catch (error) {
+			console.error('Error registering attendance event:', error);
+			Alert.alert('Błąd', 'Wystąpił błąd połączenia z serwerem.');
+		}
+	};
+
+	const handleCheckIn = async (location: Coordinates) => {
+		await handleAttendanceEvent('check_in', location);
+	};
+
+	const handleCheckOut = async (location: Coordinates) => {
+		await handleAttendanceEvent('check_out', location);
+	};
 
 	const handleLogout = async () => {
 		await logout();
@@ -42,6 +155,20 @@ export default function HomeScreen() {
 					<ThemedText>Rola: {user.role}</ThemedText>
 					<ThemedText>Firma: {user.company_name}</ThemedText>
 				</ThemedView>
+			)}
+
+			{isLoading ? (
+				<ActivityIndicator size="large" color="#0000ff" />
+			) : workplaceConfig ? (
+				<AttendanceControl
+					isWorking={isWorking}
+					workplaceCoordinates={workplaceConfig}
+					geofenceRadius={workplaceConfig.radius}
+					onCheckIn={handleCheckIn}
+					onCheckOut={handleCheckOut}
+				/>
+			) : (
+				<ThemedText>Nie udało się pobrać konfiguracji miejsca pracy.</ThemedText>
 			)}
 
 			<ThemedView style={styles.stepContainer}>

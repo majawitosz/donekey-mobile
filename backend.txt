@@ -1,0 +1,34 @@
+Podsumowanie wymagań dla Backendu
+Aby system działał w pełni produkcyjnie, backend musi udostępnić następujące API:
+
+Konfiguracja Miejsca Pracy (Endpoint GET)
+
+Cel: Aplikacja musi wiedzieć, gdzie znajduje się "strefa" dla danego pracownika.
+Przykładowy endpoint: GET /api/workplace/config/
+Wymagana odpowiedź:
+{
+  "latitude": 52.2319,
+  "longitude": 21.0067,
+  "radius": 150 // promień w metrach
+}
+Rejestracja Zdarzenia (Endpoint POST)
+
+Cel: Zapisanie faktu rozpoczęcia lub zakończenia pracy wraz z lokalizacją.
+Przykładowy endpoint: POST /api/attendance/event/
+Wymagane dane (Body):
+Ważne: Backend powinien ponownie zweryfikować odległość po swojej stronie (Server-side validation), aby zapobiec manipulacji requestami.
+Status Pracownika (Endpoint GET lub pole w User)
+
+{
+  "type": "check_in" | "check_out",
+  "latitude": 52.2319, // współrzędne użytkownika w momencie kliknięcia
+  "longitude": 21.0067,
+  "timestamp": "2023-11-25T10:00:00Z"
+}
+Cel: Aplikacja musi wiedzieć przy starcie, czy pracownik jest aktualnie "w pracy", aby wyświetlić odpowiedni przycisk (Check-in vs Check-out).
+Przykładowy endpoint: GET /api/attendance/status/
+Wymagana odpowiedź:
+{
+  "is_working": true, // lub false
+  "last_event_time": "..."
+}
