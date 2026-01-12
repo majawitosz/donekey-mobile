@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# Aplikacja mobilna – System zarządzania personelem 👋
+# Aplikacja mobilna – System zarządzania personelem 
 
 Projekt został zrealizowany przy użyciu platformy **Expo**  
 (https://expo.dev) i utworzony za pomocą narzędzia  
