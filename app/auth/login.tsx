@@ -63,7 +63,6 @@ export default function LoginScreen() {
 			}
 
 			const responseData = await response.json();
-			console.log('Login response:', JSON.stringify(responseData, null, 2));
 			
 			if (responseData.token) {
 				await AsyncStorage.setItem('@auth/token', responseData.token);
@@ -78,7 +77,6 @@ export default function LoginScreen() {
 			const isUserIncomplete = !userData || (!userData.id && !userData.pk);
 
 			if (token && isUserIncomplete) {
-				console.log('User data incomplete or missing, fetching profile...');
 				try {
 					// Try /users/me/ first
 					let userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/me/`, {
@@ -94,7 +92,6 @@ export default function LoginScreen() {
 						// If userData existed, we overwrite it to ensure we have the ID.
 						userData = fullUserData;
 					} else {
-						console.log('Failed to fetch /users/me/, trying /auth/user/');
 						// Try alternative endpoint /auth/user/
 						userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/user/`, {
 							headers: {
@@ -104,8 +101,6 @@ export default function LoginScreen() {
 						});
 						if (userResponse.ok) {
 							userData = await userResponse.json();
-						} else {
-							console.log('Failed to fetch /auth/user/');
 						}
 					}
 				} catch (e) {

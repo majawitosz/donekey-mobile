@@ -13,12 +13,12 @@ import { Link, useRouter, type Href } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useAuth } from '@/hooks/use-auth';
 
 export default function RegisterCompanyScreen() {
 	const router = useRouter();
-	const { login } = useAuth();
 	const [companyName, setCompanyName] = useState('');
+	const [firstName, setFirstName] = useState('');
+	const [lastName, setLastName] = useState('');
 	const [nip, setNip] = useState('');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
@@ -33,6 +33,8 @@ export default function RegisterCompanyScreen() {
 		setFieldErrors({});
 		if (
 			!companyName.trim() ||
+			!firstName.trim() ||
+			!lastName.trim() ||
 			!nip.trim() ||
 			!email.trim() ||
 			!password.trim() ||
@@ -53,27 +55,35 @@ export default function RegisterCompanyScreen() {
 			return;
 		}
 
-		try {
-			const response = await fetch(
-				`${
-					process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
-				}/register-company`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						company_name: companyName,
-						nip: sanitizedNip,
-						email,
-						password,
-					}),
-				}
+		const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL;
+
+		if (!apiBaseUrl) {
+			setError(
+				'Brak konfiguracji API (EXPO_PUBLIC_API_URL). Zgłoś to administratorowi.'
 			);
+			return;
+		}
+
+		try {
+			const response = await fetch(`${apiBaseUrl}/register-company`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					company_name: companyName,
+					first_name: firstName,
+					last_name: lastName,
+					nip: sanitizedNip,
+					email,
+					password,
+				}),
+			});
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
+				let hasFieldErrors = false;
+
 				if (errorData && typeof errorData === 'object') {
 					const newFieldErrors: Record<string, string> = {};
 					Object.entries(errorData).forEach(([field, messages]) => {
@@ -83,14 +93,21 @@ export default function RegisterCompanyScreen() {
 							newFieldErrors[field] = messages;
 						}
 					});
+					hasFieldErrors = Object.keys(newFieldErrors).length > 0;
 					setFieldErrors(newFieldErrors);
-					throw new Error('Popraw błędy w formularzu');
-				} else {
-					throw new Error(errorData.detail || 'Coś poszło nie tak');
+
+					if (!hasFieldErrors && typeof errorData.detail === 'string') {
+						throw new Error(errorData.detail);
+					}
 				}
+
+				if (hasFieldErrors) {
+					return;
+				}
+
+				throw new Error('Coś poszło nie tak');
 			}
 
-			await response.json();
 			router.push(`/auth/login?email=${encodeURIComponent(email)}`);
 		} catch (err) {
 			setError(
@@ -140,6 +157,64 @@ export default function RegisterCompanyScreen() {
 								darkColor='#fca5a5'
 								style={styles.fieldError}>
 								{fieldErrors.company_name}
+							</ThemedText>
+						) : null}
+					</View>
+					<View style={styles.fieldGroup}>
+						<ThemedText type='subtitle' style={styles.label}>
+							Imię
+						</ThemedText>
+						<TextInput
+							placeholder='Jan'
+							placeholderTextColor='rgba(148,163,184,0.7)'
+							style={styles.input}
+							value={firstName}
+							onChangeText={(value) => {
+								setFirstName(value);
+								if (error) setError(null);
+								if (fieldErrors.first_name) {
+									setFieldErrors((prev) => ({
+										...prev,
+										first_name: '',
+									}));
+								}
+							}}
+						/>
+						{fieldErrors.first_name ? (
+							<ThemedText
+								lightColor='#ef4444'
+								darkColor='#fca5a5'
+								style={styles.fieldError}>
+								{fieldErrors.first_name}
+							</ThemedText>
+						) : null}
+					</View>
+					<View style={styles.fieldGroup}>
+						<ThemedText type='subtitle' style={styles.label}>
+							Nazwisko
+						</ThemedText>
+						<TextInput
+							placeholder='Kowalski'
+							placeholderTextColor='rgba(148,163,184,0.7)'
+							style={styles.input}
+							value={lastName}
+							onChangeText={(value) => {
+								setLastName(value);
+								if (error) setError(null);
+								if (fieldErrors.last_name) {
+									setFieldErrors((prev) => ({
+										...prev,
+										last_name: '',
+									}));
+								}
+							}}
+						/>
+						{fieldErrors.last_name ? (
+							<ThemedText
+								lightColor='#ef4444'
+								darkColor='#fca5a5'
+								style={styles.fieldError}>
+								{fieldErrors.last_name}
 							</ThemedText>
 						) : null}
 					</View>

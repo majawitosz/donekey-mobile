@@ -3,6 +3,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     createContext,
+    useCallback,
     useContext,
     useEffect,
     useMemo,
@@ -27,7 +28,7 @@ type AuthContextValue = {
 	isAuthenticated: boolean;
 	user: User | null;
 	login: (userData: User) => void;
-	logout: () => void;
+	logout: () => Promise<void>;
 };
 
 const AUTH_STORAGE_KEY = '@auth/user_v2';
@@ -87,26 +88,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	}, [user, isLoading]);
 
+	const login = useCallback((userData: User) => {
+		setIsAuthenticated(true);
+		setUser(userData);
+	}, []);
+
+	const logout = useCallback(async () => {
+		setIsAuthenticated(false);
+		setUser(null);
+		try {
+			// Token żyje pod osobnym kluczem niż profil — bez tego
+			// po wylogowaniu zostaje w AsyncStorage.
+			await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, '@auth/token']);
+		} catch (error) {
+			console.error('Error clearing user data:', error);
+		}
+	}, []);
+
 	const value = useMemo(
 		() => ({
 			isAuthenticated,
 			user,
-			login: (userData: User) => {
-				console.log('AuthProvider login called with:', userData);
-				setIsAuthenticated(true);
-				setUser(userData);
-			},
-			logout: async () => {
-				setIsAuthenticated(false);
-				setUser(null);
-				try {
-					await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-				} catch (error) {
-					console.error('Error clearing user data:', error);
-				}
-			},
+			login,
+			logout,
 		}),
-		[isAuthenticated, user]
+		[isAuthenticated, user, login, logout]
 	);
 
 	// Don't render children until we've checked for stored user data

@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker, {
 	DateTimePickerAndroid,
 } from '@react-native-community/datetimepicker';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
 	Alert,
 	Platform,
@@ -34,6 +34,22 @@ const DAYS_OF_WEEK = [
 	'Niedziela',
 ];
 
+/**
+ * `toISOString()` konwertuje do UTC — lokalna północ w Polsce daje poprzedni
+ * dzień. Daty wysyłamy i porównujemy w czasie lokalnym urządzenia.
+ */
+function formatLocalDate(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+function parseLocalDate(value: string): Date {
+	const [year, month, day] = value.split('-').map(Number);
+	return new Date(year, (month ?? 1) - 1, day ?? 1);
+}
+
 export default function AvailabilityScreen() {
 	const { user, logout } = useAuth();
 	const [token, setToken] = useState<string | null>(null);
@@ -53,7 +69,7 @@ export default function AvailabilityScreen() {
 			}
 		};
 		fetchToken();
-	}, []);
+	}, [user, logout]);
 
 	const [availability, setAvailability] = useState<Availability>({
 		Poniedziałek: { from: null, to: null },
@@ -87,22 +103,16 @@ export default function AvailabilityScreen() {
 		setCurrentMonday(newMonday);
 	};
 
-	useEffect(() => {
-		if (token && user) {
-			fetchAvailability();
-		}
-	}, [token, user, currentMonday]);
-
-	const fetchAvailability = async () => {
-		const userId = user?.id || (user as any)?.pk;
+	const fetchAvailability = useCallback(async () => {
+		const userId = user?.id || (user as { pk?: number })?.pk;
 		if (!userId || !token) return;
 
 		const monday = new Date(currentMonday);
 		const sunday = new Date(monday);
 		sunday.setDate(monday.getDate() + 6);
 
-		const dateFrom = monday.toISOString().split('T')[0];
-		const dateTo = sunday.toISOString().split('T')[0];
+		const dateFrom = formatLocalDate(monday);
+		const dateTo = formatLocalDate(sunday);
 
 		try {
 			const response = await fetch(
@@ -114,27 +124,44 @@ export default function AvailabilityScreen() {
 				}
 			);
 
-			if (response.ok) {
-				const responseData = await response.json();
-				console.log('Availability data received:', responseData);
-				
-				// Handle both array response and paginated response ({ results: [...] })
-				const data = Array.isArray(responseData) ? responseData : (responseData.results || []);
+			if (response.status === 401) {
+				Alert.alert(
+					'Sesja wygasła',
+					'Zaloguj się ponownie, aby kontynuować.'
+				);
+				await logout();
+				return;
+			}
 
-				// Reset availability for the new week
-				const newAvailability: Availability = {
-					Poniedziałek: { from: null, to: null },
-					Wtorek: { from: null, to: null },
-					Środa: { from: null, to: null },
-					Czwartek: { from: null, to: null },
-					Piątek: { from: null, to: null },
-					Sobota: { from: null, to: null },
-					Niedziela: { from: null, to: null },
-				};
-				const newSelectedDays = new Set<string>();
+			if (!response.ok) {
+				throw new Error(
+					`Nie udało się pobrać dyspozycji (${response.status})`
+				);
+			}
 
-				data.forEach((item: any) => {
-					const date = new Date(item.date);
+			const responseData = await response.json();
+			// Endpoint mobilny zwraca tablicę; obsługujemy też paginację.
+			const data = Array.isArray(responseData)
+				? responseData
+				: responseData.results || [];
+
+			const newAvailability: Availability = {
+				Poniedziałek: { from: null, to: null },
+				Wtorek: { from: null, to: null },
+				Środa: { from: null, to: null },
+				Czwartek: { from: null, to: null },
+				Piątek: { from: null, to: null },
+				Sobota: { from: null, to: null },
+				Niedziela: { from: null, to: null },
+			};
+			const newSelectedDays = new Set<string>();
+
+			data.forEach(
+				(item: {
+					date: string;
+					available_slots?: { start: string; end: string }[];
+				}) => {
+					const date = parseLocalDate(item.date);
 					const dayIndex = date.getDay(); // 0 is Sunday
 					// Adjust index for DAYS_OF_WEEK array (0=Monday, 6=Sunday)
 					const arrayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
@@ -150,16 +177,16 @@ export default function AvailabilityScreen() {
 
 						const fromDate = new Date();
 						fromDate.setHours(
-							parseInt(startH),
-							parseInt(startM),
+							parseInt(startH, 10),
+							parseInt(startM, 10),
 							0,
 							0
 						);
 
 						const toDate = new Date();
 						toDate.setHours(
-							parseInt(endH),
-							parseInt(endM),
+							parseInt(endH, 10),
+							parseInt(endM, 10),
 							0,
 							0
 						);
@@ -170,14 +197,26 @@ export default function AvailabilityScreen() {
 						};
 						newSelectedDays.add(dayName);
 					}
-				});
-				setAvailability(newAvailability);
-				setSelectedDays(newSelectedDays);
-			}
+				}
+			);
+			setAvailability(newAvailability);
+			setSelectedDays(newSelectedDays);
 		} catch (error) {
 			console.error('Error fetching availability:', error);
+			Alert.alert(
+				'Błąd',
+				error instanceof Error
+					? error.message
+					: 'Nie udało się pobrać dyspozycji.'
+			);
 		}
-	};
+	}, [currentMonday, token, user, logout]);
+
+	useEffect(() => {
+		if (token && user) {
+			fetchAvailability();
+		}
+	}, [token, user, fetchAvailability]);
 
 	const getCurrentWeekRange = () => {
 		const monday = new Date(currentMonday);
@@ -226,7 +265,7 @@ export default function AvailabilityScreen() {
 		const targetDate = new Date(monday);
 		targetDate.setDate(monday.getDate() + dayIndex);
 
-		return targetDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+		return formatLocalDate(targetDate); // YYYY-MM-DD w czasie lokalnym
 	};
 
 	const updateAvailability = (
@@ -244,21 +283,25 @@ export default function AvailabilityScreen() {
 	};
 
 	const toggleDaySelection = (day: string) => {
+		const wasSelected = selectedDays.has(day);
+
 		setSelectedDays((prev) => {
 			const newSelected = new Set(prev);
-			if (newSelected.has(day)) {
-				// Odznaczanie dnia - wyczyść godziny
+			if (wasSelected) {
 				newSelected.delete(day);
-				setAvailability((prev) => ({
-					...prev,
-					[day]: { from: null, to: null },
-				}));
 			} else {
-				// Zaznaczanie dnia
 				newSelected.add(day);
 			}
 			return newSelected;
 		});
+
+		if (wasSelected) {
+			// Odznaczanie dnia - wyczyść godziny
+			setAvailability((prev) => ({
+				...prev,
+				[day]: { from: null, to: null },
+			}));
+		}
 	};
 
 	const showTimePicker = (day: string, field: 'from' | 'to') => {
@@ -285,15 +328,23 @@ export default function AvailabilityScreen() {
 		const userId = user?.id || (user as any)?.pk;
 
 		if (!userId) {
-			console.log('User object missing id/pk:', user);
-			setSubmitError('Musisz być zalogowany, aby wysłać dyspozycje (brak ID użytkownika)');
+			setSubmitError(
+				'Musisz być zalogowany, aby wysłać dyspozycje (brak ID użytkownika)'
+			);
 			return;
 		}
-		for (const day of selectedDays) {
-			const dayAvailability = availability[day];
 
-			// If both times are set, "from" must be before "to"
-			if (dayAvailability.from! >= dayAvailability.to!) {
+		for (const day of selectedDays) {
+			const { from, to } = availability[day];
+
+			if (!from || !to) {
+				setSubmitError(
+					`Ustaw godziny "od" i "do" dla dnia ${day} lub odznacz ten dzień.`
+				);
+				return;
+			}
+
+			if (from >= to) {
 				setSubmitError(
 					`Dla ${day} godzina "od" musi być wcześniejsza niż godzina "do"`
 				);
@@ -305,21 +356,27 @@ export default function AvailabilityScreen() {
 		setSubmitError(null);
 
 		try {
-			// Transform availability data to API format - array of all 7 days
-			const availabilityData = DAYS_OF_WEEK.map((day) => ({
-				date: getDateForDayOfWeek(day),
-				available_slots:
-					availability[day].from && availability[day].to
-						? {
-								start: availability[day]
-									.from!.toTimeString()
-									.slice(0, 5), // HH:MM format
-								end: availability[day]
-									.to!.toTimeString()
-									.slice(0, 5),
-						  }
-						: null,
-			}));
+			// Wysyłamy wszystkie 7 dni: wybrane ze slotem, pozostałe jako puste
+			// (null czyści wcześniej zapisaną dyspozycyjność).
+			const availabilityData = DAYS_OF_WEEK.map((day) => {
+				const { from, to } = availability[day];
+				const isSelected = selectedDays.has(day);
+
+				return {
+					date: getDateForDayOfWeek(day),
+					available_slots:
+						isSelected && from && to
+							? [
+									{
+										start: from
+											.toTimeString()
+											.slice(0, 5), // HH:MM
+										end: to.toTimeString().slice(0, 5),
+									},
+								]
+							: null,
+				};
+			});
 
 			const response = await fetch(
 				`${process.env.EXPO_PUBLIC_API_URL_V2}/availability/bulk`,
@@ -335,6 +392,16 @@ export default function AvailabilityScreen() {
 					}),
 				}
 			);
+
+			if (response.status === 401) {
+				Alert.alert(
+					'Sesja wygasła',
+					'Zaloguj się ponownie, aby kontynuować.'
+				);
+				await logout();
+				return;
+			}
+
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
 				console.error('Availability error:', response.status, errorData);

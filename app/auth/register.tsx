@@ -13,13 +13,10 @@ import { Link, type Href } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { ThemedButton } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'expo-router';
 
 export default function RegisterScreen() {
 	const router = useRouter();
-	const { login } = useAuth();
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
@@ -89,6 +86,8 @@ export default function RegisterScreen() {
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
+				let hasFieldErrors = false;
+
 				if (errorData && typeof errorData === 'object') {
 					const newFieldErrors: Record<string, string> = {};
 					Object.entries(errorData).forEach(([field, messages]) => {
@@ -98,14 +97,21 @@ export default function RegisterScreen() {
 							newFieldErrors[field] = messages;
 						}
 					});
+					hasFieldErrors = Object.keys(newFieldErrors).length > 0;
 					setFieldErrors(newFieldErrors);
-					//throw new Error('Popraw błędy w formularzu');
-				} else {
-					throw new Error(errorData.detail || 'Coś poszło nie tak');
+
+					if (!hasFieldErrors && typeof errorData.detail === 'string') {
+						throw new Error(errorData.detail);
+					}
 				}
+
+				if (hasFieldErrors) {
+					return;
+				}
+
+				throw new Error('Coś poszło nie tak');
 			}
 
-			await response.json();
 			router.push(`/auth/login?email=${encodeURIComponent(email)}`);
 		} catch (err) {
 			setError(
@@ -338,11 +344,6 @@ export default function RegisterScreen() {
 							Zarejestruj się
 						</ThemedText>
 					</Pressable>
-					<ThemedButton
-						variant='outline'
-						style={styles.secondaryButton}>
-						Zarejestruj się przez Google
-					</ThemedButton>
 				</View>
 			</ScrollView>
 		</ThemedView>

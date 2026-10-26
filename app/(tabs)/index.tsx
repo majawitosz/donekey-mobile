@@ -31,8 +31,13 @@ export default function HomeScreen() {
 			try {
 				const storedToken = await AsyncStorage.getItem('@auth/token');
 				if (!storedToken) {
-					// Handle missing token if necessary, though auth provider should handle redirect
-					setIsLoading(false);
+					// Profil i token żyją pod różnymi kluczami — brak tokenu przy
+					// zapisanym profilu oznacza stan „zalogowany, ale bez dostępu".
+					Alert.alert(
+						'Sesja wygasła',
+						'Zaloguj się ponownie, aby kontynuować.'
+					);
+					await logout();
 					return;
 				}
 				setToken(storedToken);
@@ -45,13 +50,28 @@ export default function HomeScreen() {
 					},
 				});
 
+				if (configResponse.status === 401) {
+					Alert.alert('Sesja wygasła', 'Zaloguj się ponownie, aby kontynuować.');
+					await logout();
+					return;
+				}
+
 				if (configResponse.ok) {
 					const configData = await configResponse.json();
-					setWorkplaceConfig({
-						latitude: parseFloat(configData.latitude),
-						longitude: parseFloat(configData.longitude),
-						radius: configData.radius || 150,
-					});
+					const latitude = Number.parseFloat(configData.latitude);
+					const longitude = Number.parseFloat(configData.longitude);
+
+					if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+						setWorkplaceConfig({
+							latitude,
+							longitude,
+							radius: configData.radius || 150,
+						});
+					} else {
+						// Firma nie ma jeszcze ustawionej geofencji — nie pokazujemy
+						// przycisków check-in/out, bo i tak zostałyby odrzucone.
+						setWorkplaceConfig(null);
+					}
 				} else {
 					console.error('Failed to fetch workplace config');
 				}
@@ -64,9 +84,15 @@ export default function HomeScreen() {
 					},
 				});
 
+				if (statusResponse.status === 401) {
+					Alert.alert('Sesja wygasła', 'Zaloguj się ponownie, aby kontynuować.');
+					await logout();
+					return;
+				}
+
 				if (statusResponse.ok) {
 					const statusData = await statusResponse.json();
-					setIsWorking(statusData.is_working);
+					setIsWorking(Boolean(statusData.is_working));
 				} else {
 					console.error('Failed to fetch attendance status');
 				}
@@ -82,7 +108,7 @@ export default function HomeScreen() {
 		if (user) {
 			initialize();
 		}
-	}, [user]);
+	}, [user, logout]);
 
 	const handleAttendanceEvent = async (type: 'check_in' | 'check_out', location: Coordinates) => {
 		if (!token) return;
@@ -103,9 +129,11 @@ export default function HomeScreen() {
 			});
 
 			if (response.ok) {
-				const data = await response.json();
 				setIsWorking(type === 'check_in');
 				Alert.alert('Sukces', type === 'check_in' ? 'Rozpoczęto pracę!' : 'Zakończono pracę!');
+			} else if (response.status === 401) {
+				Alert.alert('Sesja wygasła', 'Zaloguj się ponownie, aby kontynuować.');
+				await logout();
 			} else {
 				const errorData = await response.json().catch(() => ({}));
 				console.error('Attendance error:', response.status, errorData);
@@ -174,7 +202,7 @@ export default function HomeScreen() {
 			<ThemedView style={styles.stepContainer}>
 				<ThemedText type='subtitle'>Dyspozycje</ThemedText>
 				<ThemedText>
-					Przejdź do zakładki "Dyspo" aby zarządzać swoimi
+					Przejdź do zakładki „Dyspo” aby zarządzać swoimi
 					dyspozycjami do grafiku pracy.
 				</ThemedText>
 			</ThemedView>
